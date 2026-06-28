@@ -1,0 +1,7 @@
+[
+  {
+    "question": "What is the refund policy?",
+    "ground_truth": "Customers may request a full refund within 30 days of purchase.",
+    "source_doc": "policy.pdf"
+  }
+]
