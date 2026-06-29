@@ -49,25 +49,33 @@ def _build_context(docs: list[Document]) -> str:
     return "\n\n---\n\n".join(parts)
 
 
-def generate(query: str, context_docs: list[Document]) -> GeneratorResponse:
+def generate(
+    query: str,
+    context_docs: list[Document],
+    system_prompt: str | None = None,
+    llm: BaseChatModel | None = None,
+) -> GeneratorResponse:
     """Call the LLM with retrieved context and return a grounded answer with citations.
 
-    Raises ValueError if context_docs is empty — the pipeline should always retrieve
-    before generating to avoid hallucination.
-
-    The system prompt is loaded from prompts/system_prompt.txt so it can be
-    versioned and swapped without touching Python code.
+    Args:
+        query: the user's question.
+        context_docs: retrieved documents — raises ValueError if empty.
+        system_prompt: override the default prompts/system_prompt.txt. Must contain
+                       a {context} placeholder. Useful when the caller has a domain-
+                       specific prompt (e.g. govscan's repo-focused instructions).
+        llm: override the LLM returned by get_llm(). Pass an already-configured
+             BaseChatModel when you want to inject a specific API key or model without
+             setting environment variables (e.g. from a Streamlit secret).
     """
     if not context_docs:
         raise ValueError("context_docs is empty — retrieve documents before calling generate")
 
-    system_prompt = _SYSTEM_PROMPT_PATH.read_text().replace(
-        "{context}", _build_context(context_docs)
-    )
+    prompt_template = system_prompt or _SYSTEM_PROMPT_PATH.read_text()
+    filled_prompt = prompt_template.replace("{context}", _build_context(context_docs))
 
-    llm = get_llm()
-    response = llm.invoke([
-        SystemMessage(content=system_prompt),
+    model = llm or get_llm()
+    response = model.invoke([
+        SystemMessage(content=filled_prompt),
         HumanMessage(content=query),
     ])
 
